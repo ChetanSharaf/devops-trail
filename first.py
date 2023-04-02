@@ -1,21 +1,22 @@
 from flask import Flask, g
-import pickle
-
+import sqlite3
 my_var = 0
 app = Flask(__name__)
-app.config['Database'] = 'myvar.pickle'
-   
+app.config['Database'] = 'myvar.db'
+
+
 @app.before_first_request
 def setup():
     global my_var
-    try:
-        with open(app.config['Database'], 'rb') as f:
-            my_var = pickle.load(f)
-    
-    except FileNotFoundError:
-        with open(app.config['Database'], 'wb') as f:
-            print("Creating a new pickle file...")
-    print("Setting up the app...")
+    conn = sqlite3.connect(app.config['Database'])
+    c = conn.cursor()
+    print(app.config['Database'])
+    c.execute('SELECT var FROM mytable')
+    var = c.fetchall()
+    my_var = var[0][0]
+    print(my_var)
+    conn.close() 
+
 
 @app.route('/api/hello', methods=['GET'])
 def hello():
@@ -25,8 +26,11 @@ def hello():
 
 @app.teardown_appcontext
 def close_connection(exception):
-    with open(app.config['Database'], "wb") as f:
-        pickle.dump(my_var, f)
+    conn = sqlite3.connect(app.config['Database'])
+    c = conn.cursor()
+    c.execute('UPDATE mytable SET var = '+ str(my_var) + ' WHERE id = 1')
+    conn.commit()
+    conn.close()
 
 if __name__ == '__main__':
     app.run()
